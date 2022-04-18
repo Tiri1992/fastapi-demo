@@ -1,3 +1,4 @@
+from gettext import find
 from lib2to3.pgen2.token import OP
 from turtle import pos
 from fastapi import FastAPI
@@ -44,6 +45,12 @@ def find_post(id: int) -> Optional[dict]:
     for post in my_post:
         if post["id"] == id:
             return post
+
+
+def find_idx(id: int) -> Optional[int]:
+    for idx, post in enumerate(my_post):
+        if post["id"] == id:
+            return idx
 
 
 @app.get("/")
@@ -95,4 +102,44 @@ def get_post(id: int, response: Response):
         )
     return {
         "post_detail": find_post(id)
+    }
+
+
+@app.delete("/posts/{id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_post(id: int):
+    # For delete requests, we can provide a 204 - NO content response which is typical for delete requests
+    # HTTP 204 No Content: The server successfully processed the request, but is not returning any content
+    # Find the index in the array that has required id
+    idx = find_idx(id)
+    print(idx)
+    if idx is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"post with id: {id} was not found.",
+        )
+    del my_post[idx]
+    # We dont want to send any data back for a 204 response
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+# Update
+
+
+@app.put("/posts/{id}", status_code=status.HTTP_200_OK)
+def update_post(id: int, post: Post):
+    # Either 200 or 204 should be okay as a response for a PUT request
+    # Remember for PUT requests we need to send the body alongside the request which contains
+    # the entire payload for updating (even if its just a subset being updates).
+    # This is different from PATCH were we define the subset of data to update the resource with.
+    idx = find_idx(id)
+    if idx is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"post with id: {id} was not found.",
+        )
+    # Update the entire post with new record
+    data = post.dict()
+    data["id"] = id
+    my_post[idx] = data
+    return {
+        "message": "data was successfully updated."
     }
