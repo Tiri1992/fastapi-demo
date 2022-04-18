@@ -15,7 +15,7 @@ app = FastAPI()
 
 # NOTE: If you have to routes that are the same i.e. '/' it will resolve the first function as the route.
 
-# Curr video time: 2:02:01
+# Curr video time: 3:47:17
 
 
 class Post(BaseModel):
