@@ -10,12 +10,14 @@ from fastapi.params import Body
 from pydantic import BaseModel
 from typing import Optional
 from random import randrange
+import psycopg2
+from psycopg2.extras import RealDictCursor
 # Create an instance
 app = FastAPI()
 
 # NOTE: If you have to routes that are the same i.e. '/' it will resolve the first function as the route.
 
-# Curr video time: 3:47:17
+# Curr video time: 4:34:30
 
 
 class Post(BaseModel):
@@ -23,7 +25,17 @@ class Post(BaseModel):
     title: str
     content: str
     published: bool = True
-    rating: Optional[int] = None
+
+
+try:
+    # RealDictCursor modifies the returned result from the cursor so that its more user friendly for the developer. This case, it will return a dict.
+    # This allows you to get() values from the response i.e. res["id"] or res["name"], where "id" and "name" are fields on the table.
+    conn = psycopg2.connect(host='localhost', database='fastapi',
+                            user='postgres', password='cyprus1992', cursor_factory=RealDictCursor)
+    cursor = conn.cursor()
+    print("Database connected successfully.")
+except Exception as err:
+    print(f"Connecting to db failed: {err}")
 
 
 # tmp db
@@ -63,25 +75,26 @@ def read_root():
 @app.get("/posts")
 def get_posts():
     # FastApi will automatically serialize a list as an array for json format
+    cursor.execute("""SELECT * FROM posts;""")
+    # Response from db
+    res = cursor.fetchall()
+    print(res)
     return {
-        "data": my_post,
+        "data": res,
     }
 
 
 @app.post("/posts", status_code=status.HTTP_201_CREATED)
 def create_post(post: Post):
-    # Name of the function never matters, but its bad practice to have
-    # the http method inside the endpoint i.e. 'createposts'
-    # NOTE: POST requests sends data to the api server and then the server does something with that data
-    # Body is a fastApi obj which extracts the body of the data being sent over by the client and the variable body
-    # will be referencing this data.
-    # If you ever need to serialise the model back into a json format we can use the .dict() method
-    post_dict = post.dict()
-    post_dict["id"] = randrange(0, 10000000)
-    my_post.append(post_dict)
-    # ALWAYS SEND BACK THE DATA CREATED TO THE CLIENT!
+    # Placeholders %s with a tuple holding the values allows the library to check for sql injections
+    cursor.execute("""INSERT INTO posts (title, content, published) VALUES (%s, %s, %s) RETURNING * """,
+                   (post.title, post.content, post.published))
+    # Get result from RETURNING statement
+    new_post = cursor.fetchone()
+    # We need to commit the changes to persist the result
+    conn.commit()
     return {
-        "data": post_dict,
+        "data": new_post,
     }
 
 # NOTE: ORDER MATTERS, if I define an endpoint /posts/latest it will work top down to find matching path
@@ -89,11 +102,13 @@ def create_post(post: Post):
 
 
 @app.get("/posts/{id}")
-def get_post(id: int, response: Response):
+def get_post(id: int):
     # posts -> plural
     # path parameter is the {id} field: we type annotated it here as an int
     # NOTE: make sure you put the type annotation as int to convert it from str -> int (for id)
-    res = find_post(id)
+    # For %s placeholders requires values of type str.
+    cursor.execute("""SELECT * FROM posts WHERE id = %s """, (str(id)))
+    res = cursor.fetchone()
     if not res:
         # Check http status codes. 404 = server can not find the requested resource
         raise HTTPException(
@@ -101,7 +116,7 @@ def get_post(id: int, response: Response):
             detail=f"post with id: {id} was not found.",
         )
     return {
-        "post_detail": find_post(id)
+        "post_detail": res
     }
 
 
@@ -110,14 +125,16 @@ def delete_post(id: int):
     # For delete requests, we can provide a 204 - NO content response which is typical for delete requests
     # HTTP 204 No Content: The server successfully processed the request, but is not returning any content
     # Find the index in the array that has required id
-    idx = find_idx(id)
-    print(idx)
-    if idx is None:
+    cursor.execute(
+        """DELETE FROM posts WHERE id = %s RETURNING *;""", (str(id), ))
+    res = cursor.fetchone()
+    # Persist the change to the DB.
+    conn.commit()
+    if res is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"post with id: {id} was not found.",
         )
-    del my_post[idx]
     # We dont want to send any data back for a 204 response
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
@@ -130,16 +147,18 @@ def update_post(id: int, post: Post):
     # Remember for PUT requests we need to send the body alongside the request which contains
     # the entire payload for updating (even if its just a subset being updates).
     # This is different from PATCH were we define the subset of data to update the resource with.
-    idx = find_idx(id)
-    if idx is None:
+    # Easier to see with the UPDATE statement, we require all data (even that which has not changed). I.e. PUT request.
+    cursor.execute("""UPDATE posts SET title = %s, content = %s, published = %s WHERE id = %s RETURNING *""",
+                   (post.title, post.content, post.published, str(id)))
+    res = cursor.fetchone()
+    # Persist change to db
+    conn.commit()
+    if res is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"post with id: {id} was not found.",
         )
     # Update the entire post with new record
-    data = post.dict()
-    data["id"] = id
-    my_post[idx] = data
     return {
-        "message": "data was successfully updated."
+        "updated": res
     }
