@@ -31,7 +31,7 @@ try:
     # RealDictCursor modifies the returned result from the cursor so that its more user friendly for the developer. This case, it will return a dict.
     # This allows you to get() values from the response i.e. res["id"] or res["name"], where "id" and "name" are fields on the table.
     conn = psycopg2.connect(host='localhost', database='fastapi',
-                            user='postgres', password='cyprus1992', cursor_factory=RealDictCursor)
+                            user='postgres', password='', cursor_factory=RealDictCursor)
     cursor = conn.cursor()
     print("Database connected successfully.")
 except Exception as err:
