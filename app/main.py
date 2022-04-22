@@ -40,6 +40,7 @@ class Post(BaseModel):
 def test_posts(db: Session = Depends(get_db)):
     # Use the .query method from SessionLocal instance, and pass in the model you want
     # to run against.
+    # Try print(db.query(models.Post)) -> this is the same as SELECT * FROM posts;
     posts = db.query(models.Post).all()
     return {
         "data": posts
@@ -53,52 +54,47 @@ def test_posts(db: Session = Depends(get_db)):
 #     return {"Hello": "Tiri"}
 
 
-# @app.get("/posts")
-# def get_posts():
-#     # FastApi will automatically serialize a list as an array for json format
-#     cursor.execute("""SELECT * FROM posts;""")
-#     # Response from db
-#     res = cursor.fetchall()
-#     print(res)
-#     return {
-#         "data": res,
-#     }
+@app.get("/posts")
+def get_posts(db: Session = Depends(get_db)):
+    """Gets all rows from post table."""
+    posts = db.query(models.Post).all()
+    return {
+        "data": posts,
+    }
 
 
-# @app.post("/posts", status_code=status.HTTP_201_CREATED)
-# def create_post(post: Post):
-#     # Placeholders %s with a tuple holding the values allows the library to check for sql injections
-#     cursor.execute("""INSERT INTO posts (title, content, published) VALUES (%s, %s, %s) RETURNING * """,
-#                    (post.title, post.content, post.published))
-#     # Get result from RETURNING statement
-#     new_post = cursor.fetchone()
-#     # We need to commit the changes to persist the result
-#     conn.commit()
-#     return {
-#         "data": new_post,
-#     }
+@app.post("/posts", status_code=status.HTTP_201_CREATED)
+def create_post(post: Post, db: Session = Depends(get_db)):
+    # Have sqlalchemy handle the model inputs instead of raw sql query
+    new_post = models.Post(**post.dict())
+    db.add(new_post)
+    db.commit()
+    # equivalent to adding RETURNING *; It retrieves that obj and stores it back as new_post
+    db.refresh(new_post)
+    return {
+        "data": new_post,
+    }
 
 # # NOTE: ORDER MATTERS, if I define an endpoint /posts/latest it will work top down to find matching path
 # # So this will need to be before /posts/{id} or it will this your id = "latest" and throw an error.
 
 
-# @app.get("/posts/{id}")
-# def get_post(id: int):
-#     # posts -> plural
-#     # path parameter is the {id} field: we type annotated it here as an int
-#     # NOTE: make sure you put the type annotation as int to convert it from str -> int (for id)
-#     # For %s placeholders requires values of type str.
-#     cursor.execute("""SELECT * FROM posts WHERE id = %s """, (str(id)))
-#     res = cursor.fetchone()
-#     if not res:
-#         # Check http status codes. 404 = server can not find the requested resource
-#         raise HTTPException(
-#             status_code=status.HTTP_404_NOT_FOUND,
-#             detail=f"post with id: {id} was not found.",
-#         )
-#     return {
-#         "post_detail": res
-#     }
+@app.get("/posts/{id}")
+def get_post(id: int, db: Session = Depends(get_db)):
+    # posts -> plural
+    # path parameter is the {id} field: we type annotated it here as an int
+    # NOTE: make sure you put the type annotation as int to convert it from str -> int (for id)
+    # For %s placeholders requires values of type str.
+    posts = db.query(models.Post).filter(models.Post.id == id).first()
+    if not posts:
+        # Check http status codes. 404 = server can not find the requested resource
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"post with id: {id} was not found.",
+        )
+    return {
+        "post_detail": posts
+    }
 
 
 # @app.delete("/posts/{id}", status_code=status.HTTP_204_NO_CONTENT)
