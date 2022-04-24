@@ -1,5 +1,4 @@
 """Define our models as python objs."""
-
 from .database import Base
 from sqlalchemy.sql.expression import text
 from sqlalchemy import (
@@ -10,6 +9,8 @@ from sqlalchemy import (
     TIMESTAMP
 )
 
+
+# Database models that get mapped to tables
 
 class Post(Base):
     # This will be the name thats mapped to the db
