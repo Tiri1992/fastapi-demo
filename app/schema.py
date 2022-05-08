@@ -41,3 +41,22 @@ class User(BaseModel):
 
     class Config:
         orm_mode = True
+
+
+class UserLogin(BaseModel):
+
+    email: EmailStr
+    password: str
+
+# Schema for Token
+
+
+class Token(BaseModel):
+
+    access_token: str
+    token_type: str
+
+
+class TokenData(BaseModel):
+    # Payload data in JWT token
+    id: str | None
