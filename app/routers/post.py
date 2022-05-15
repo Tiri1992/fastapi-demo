@@ -22,7 +22,9 @@ router = APIRouter(
 @router.get("/", response_model=list[schema.Post])
 def get_posts(db: Session = Depends(get_db), current_user=Depends(oauth2.get_current_user)):
     """Gets all rows from post table."""
-    posts = db.query(models.Post).all()
+    # Made a functionality change to only get posts from current user
+    posts = db.query(models.Post).filter(
+        models.Post.owner_id == current_user.id).all()
     return posts
 
 # In the response_model, we can reference a pydantic schema to define the response data
@@ -34,7 +36,8 @@ def create_post(post: schema.PostCreate, db: Session = Depends(get_db), current_
     # before accessing any of the endpoints such as create_post.
 
     # Have sqlalchemy handle the model inputs instead of raw sql query
-    new_post = models.Post(**post.dict())
+    # NOTE: Get the owner_id from the current user thats logged on through the JWT TOKEN!
+    new_post = models.Post(**post.dict(), owner_id=current_user.id)
     db.add(new_post)
     db.commit()
     # equivalent to adding RETURNING *; It retrieves that obj and stores it back as new_post
@@ -55,6 +58,12 @@ def get_post(id: int, db: Session = Depends(get_db), current_user=Depends(oauth2
     # For %s placeholders requires values of type str.
     # always use .first() when calling an ID as this grabs the first result -> More efficient
     post = db.query(models.Post).filter(models.Post.id == id).first()
+
+    if post.owner_id != current_user.id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="User not authorized to perform requested action.",
+        )
     if not post:
         # Check http status codes. 404 = server can not find the requested resource
         raise HTTPException(
@@ -71,11 +80,16 @@ def delete_post(id: int, db: Session = Depends(get_db), current_user=Depends(oau
     # Find the index in the array that has required id
     post = db.query(models.Post).filter(models.Post.id == id)
     # Persist the change to the DB.
-    if post.first() is None:
+    post_val = post.first()
+    if post_val is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"post with id: {id} was not found.",
         )
+    if post_val.owner_id != current_user.id:
+        # User is trying to delete a post that does not belong to them
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN,
+                            detail="Not authorized to perform requested action.")
     post.delete(synchronize_session=False)
     db.commit()
     # We dont want to send any data back for a 204 response
@@ -102,6 +116,11 @@ def update_post(id: int, post: schema.PostCreate, db: Session = Depends(get_db),
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"post with id: {id} was not found.",
         )
+
+    if post_val.owner_id != current_user.id:
+        # User is trying to delete a post that does not belong to them
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN,
+                            detail="Not authorized to perform requested action.")
     # If it does exist, update with pydantic model passed in by client request
     post_updated = post_query.update(post.dict(), synchronize_session=False)
     # Update the entire post with new record

@@ -1,12 +1,14 @@
 """Define our models as python objs."""
 from .database import Base
 from sqlalchemy.sql.expression import text
+from sqlalchemy.orm import relationship
 from sqlalchemy import (
     Column,
     Integer,
     String,
     Boolean,
-    TIMESTAMP
+    TIMESTAMP,
+    ForeignKey
 )
 
 
@@ -23,6 +25,14 @@ class Post(Base):
     published = Column(Boolean, server_default='TRUE', nullable=False)
     created_at = Column(TIMESTAMP(timezone=True),
                         nullable=False, server_default=text('NOW()'))
+    # Foreign key relationship with User table
+    owner_id = Column(Integer, ForeignKey(
+        "users.id", ondelete="CASCADE"), nullable=False)
+
+    # Create a relationship, must ref the class name to pull in
+    # Docs: https://docs.sqlalchemy.org/en/14/orm/basic_relationships.html#one-to-many
+    # This represents a SQLAlchemy model which pydantic will model when you return schema.Post
+    owner = relationship("User")
 
 
 class User(Base):

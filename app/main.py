@@ -16,7 +16,7 @@ app = FastAPI()
 
 # NOTE: If you have to routes that are the same i.e. '/' it will resolve the first function as the route.
 
-# Curr video time: 7:43:10
+# Curr video time: 8:11:09
 
 app.include_router(post.router)
 app.include_router(user.router)
