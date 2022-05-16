@@ -1,6 +1,5 @@
 """Path operations associated to posts."""
 # Models
-from fastapi import FastAPI
 from fastapi import Response
 from fastapi import status
 from fastapi import HTTPException
@@ -20,11 +19,19 @@ router = APIRouter(
 
 
 @router.get("/", response_model=list[schema.Post])
-def get_posts(db: Session = Depends(get_db), current_user=Depends(oauth2.get_current_user)):
+def get_posts(
+        db: Session = Depends(get_db),
+        current_user=Depends(oauth2.get_current_user),
+        limit: int = 10,
+        skip: int = 0,
+        search: str | None = ""):
     """Gets all rows from post table."""
     # Made a functionality change to only get posts from current user
+    # Query parameters are the remaining parameters given in our path operation function.
+    print(search)
     posts = db.query(models.Post).filter(
-        models.Post.owner_id == current_user.id).all()
+        models.Post.owner_id == current_user.id,
+        models.Post.title.contains(search)).limit(limit).offset(skip).all()
     return posts
 
 # In the response_model, we can reference a pydantic schema to define the response data
