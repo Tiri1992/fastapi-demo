@@ -1,4 +1,5 @@
-"""Define our models as python objs."""
+"""These will be SQLAlchemy models, which are responsible for the models implemented on
+our database."""
 from .database import Base
 from sqlalchemy.sql.expression import text
 from sqlalchemy.orm import relationship
@@ -44,3 +45,13 @@ class User(Base):
     password = Column(String, nullable=False)
     created_at = Column(TIMESTAMP(timezone=True),
                         nullable=False, server_default=text('NOW()'))
+
+
+class Vote(Base):
+
+    __tablename__ = "votes"
+    # Composite Primary key: Composed of (user_id, post_id)
+    user_id = Column(Integer, ForeignKey(
+        "users.id", ondelete="CASCADE"), primary_key=True)
+    post_id = Column(Integer, ForeignKey(
+        "posts.id", ondelete="CASCADE"), primary_key=True)
