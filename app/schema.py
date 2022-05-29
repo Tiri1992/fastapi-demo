@@ -1,5 +1,5 @@
 """Schema model for validating request body data."""
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr, conint
 from datetime import datetime
 
 
@@ -33,6 +33,10 @@ class PostBase(BaseModel):
     content: str
     published: bool = True
 
+    class Config:
+
+        orm_mode = True
+
 
 class PostCreate(PostBase):
     pass
@@ -51,6 +55,13 @@ class Post(PostBase):
         orm_mode = True
 
 
+class PostOut(BaseModel):
+    Post: Post
+    votes: int
+
+    class Config:
+        orm_mode = True
+
 # Schema for Token
 
 
@@ -63,3 +74,11 @@ class Token(BaseModel):
 class TokenData(BaseModel):
     # Payload data in JWT token
     id: str | None
+
+
+# Votes
+
+class Vote(BaseModel):
+
+    post_id: int
+    dir: conint(le=1, ge=0)

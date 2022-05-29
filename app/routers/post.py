@@ -8,6 +8,7 @@ from fastapi import Depends
 from fastapi import APIRouter
 from fastapi.params import Body
 from sqlalchemy.orm import Session
+from sqlalchemy import func
 from .. import models, schema
 from .. import oauth2
 from ..database import get_db
@@ -18,7 +19,7 @@ router = APIRouter(
 )
 
 
-@router.get("/", response_model=list[schema.Post])
+@router.get("/", response_model=list[schema.PostOut])
 def get_posts(
         db: Session = Depends(get_db),
         current_user=Depends(oauth2.get_current_user),
@@ -28,10 +29,12 @@ def get_posts(
     """Gets all rows from post table."""
     # Made a functionality change to only get posts from current user
     # Query parameters are the remaining parameters given in our path operation function.
-    print(search)
-    posts = db.query(models.Post).filter(
-        models.Post.owner_id == current_user.id,
-        models.Post.title.contains(search)).limit(limit).offset(skip).all()
+
+    # By default SQLAlchemy performs a left inner join. To get an left outer join you must specify.
+    # To alias a column use .label()
+    posts = db.query(models.Post, func.count(models.Vote.post_id).label("votes")).join(
+        models.Vote, models.Vote.post_id == models.Post.id, isouter=True).group_by(models.Post.id).filter(models.Post.owner_id == current_user.id, models.Post.title.contains(search)).limit(limit).offset(skip).all()
+
     return posts
 
 # In the response_model, we can reference a pydantic schema to define the response data
@@ -57,16 +60,16 @@ def create_post(post: schema.PostCreate, db: Session = Depends(get_db), current_
 # # So this will need to be before /posts/{id} or it will this your id = "latest" and throw an error.
 
 
-@router.get("/{id}", response_model=schema.Post)
+@router.get("/{id}", response_model=schema.PostOut)
 def get_post(id: int, db: Session = Depends(get_db), current_user=Depends(oauth2.get_current_user)):
     # posts -> plural
     # path parameter is the {id} field: we type annotated it here as an int
     # NOTE: make sure you put the type annotation as int to convert it from str -> int (for id)
     # For %s placeholders requires values of type str.
     # always use .first() when calling an ID as this grabs the first result -> More efficient
-    post = db.query(models.Post).filter(models.Post.id == id).first()
-
-    if post.owner_id != current_user.id:
+    post = db.query(models.Post, func.count(models.Vote.post_id).label("votes")).join(
+        models.Vote, models.Vote.post_id == models.Post.id, isouter=True).group_by(models.Post.id).first()
+    if post.Post.owner_id != current_user.id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="User not authorized to perform requested action.",
