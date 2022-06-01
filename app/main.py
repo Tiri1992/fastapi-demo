@@ -7,7 +7,8 @@ from .database import engine
 from .routers import post, user, auth, vote
 
 # Passlib -> to use bcrypt hashing algo
-models.Base.metadata.create_all(bind=engine)
+# Manage the creation/migration of DB in alembic
+# models.Base.metadata.create_all(bind=engine)
 
 # Create an instance
 app = FastAPI()
@@ -15,7 +16,7 @@ app = FastAPI()
 
 # NOTE: If you have to routes that are the same i.e. '/' it will resolve the first function as the route.
 
-# Curr video time: 9:21:25
+# Curr video time: 11:15:21
 
 app.include_router(post.router)
 app.include_router(user.router)
