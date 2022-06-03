@@ -1,3 +1,7 @@
 fastapi[all]
 psycopg2
 SQLAlchemy
+python-jose
+cryptography
+passlib
+pytest 
