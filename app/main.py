@@ -29,7 +29,7 @@ app.add_middleware(
 
 # NOTE: If you have to routes that are the same i.e. '/' it will resolve the first function as the route.
 
-# Curr video time: 11:15:21
+# Curr video time: 14:37:21
 
 app.include_router(post.router)
 app.include_router(user.router)

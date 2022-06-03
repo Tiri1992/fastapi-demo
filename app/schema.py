@@ -1,6 +1,7 @@
 """Schema model for validating request body data."""
 from pydantic import BaseModel, EmailStr, conint
 from datetime import datetime
+from typing import Optional
 
 
 class UserCreate(BaseModel):
@@ -73,7 +74,7 @@ class Token(BaseModel):
 
 class TokenData(BaseModel):
     # Payload data in JWT token
-    id: str | None
+    id: Optional[str]
 
 
 # Votes
