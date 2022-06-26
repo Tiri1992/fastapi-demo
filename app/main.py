@@ -10,7 +10,7 @@ from .routers import post, user, auth, vote
 
 # Passlib -> to use bcrypt hashing algo
 # Manage the creation/migration of DB in alembic
-# models.Base.metadata.create_all(bind=engine)
+models.Base.metadata.create_all(bind=engine)
 
 # Create an instance
 app = FastAPI()
